@@ -1,19 +1,38 @@
+const bunyan = require('/usr/local/lib/node_modules/bunyan');
+const logger = bunyan.createLogger({
+    'name': 'SimpleClient',
+    'level': 10,
+});
 const TDRS = require('../lib/index.js').TDRS;
 const tdrs = new TDRS({
     'links': [
         {
             'receiverAddress': 'tcp://localhost:19790',
             'publisherAddress': 'tcp://localhost:19791'
+        },
+        {
+            'receiverAddress': 'tcp://localhost:19890',
+            'publisherAddress': 'tcp://localhost:19891'
+        },
+        {
+            'receiverAddress': 'tcp://localhost:19990',
+            'publisherAddress': 'tcp://localhost:19991'
         }
     ],
     'connectRetryBeforeFailover': 1,
-    'compression': true,
-    'compressionAlgorithm': 'gzip',
-    'encryption': false
+    'compression': 'gzip',
+    'encryption': 'aes-256-ctr',
+    'encryptionKey': 'LaLaLaLaLaLaLaLaLa',
+    'logger': logger
 });
 
 tdrs.on('message', message => {
     console.log(message.toString());
+});
+
+tdrs.on('terminate', () => {
+    tdrs.disconnect();
+    process.exit(0);
 });
 
 tdrs.connect();
