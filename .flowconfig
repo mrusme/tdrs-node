@@ -6,3 +6,4 @@
 
 [options]
 suppress_comment= \\(.\\|\n\\)*\\@flowIgnore
+unsafe.enable_getters_and_setters=true
