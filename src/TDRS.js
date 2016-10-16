@@ -16,10 +16,10 @@ type TdrsLink = {
 type TdrsConfiguration = {
     links: Array<TdrsLink>,
     connectRetryBeforeFailover: ?number,
-    compression: ?boolean,
-    compressionAlgorithm: ?string,
-    encryption: ?boolean,
-    encryptionKey: ?string
+    compression: ?string,
+    encryption: ?string,
+    encryptionKey: ?string,
+    logger: ?Object
 };
 
 type TdrsConnection = {
@@ -78,6 +78,27 @@ export default class TDRS extends EventEmitter {
     }
 
     /**
+     * Returns the logger instance or an empty mock.
+     *
+     * @return     {Object}   The logger instance.
+     */
+    get log(): Object {
+        if(typeof this._configuration.logger !== 'undefined'
+        && this._configuration.logger !== null) {
+            return this._configuration.logger;
+        }
+
+        return {
+            'fatal': () => {},
+            'error': () => {},
+            'warn': () => {},
+            'info': () => {},
+            'debug': () => {},
+            'trace': () => {}
+        };
+    }
+
+    /**
      * Initializes ZeroMQ socket and connects to the specified address.
      *
      * @param      {String}   type                The type (e.g. 'pub', 'req', ...)
@@ -86,8 +107,6 @@ export default class TDRS extends EventEmitter {
      * @return     {Object}   The ZeroMQ socket.
      */
     _zmqSocketConnection(type: string, address: string, callback: Function) {
-        const MONITOR_INTERVAL = 500;
-        const MONITOR_EVENTSNR = 0;
         const SOCKET_EVENTS_ARRAY = [
             'message',
             'connect',
@@ -119,8 +138,24 @@ export default class TDRS extends EventEmitter {
             socket.on(event, (arg1, arg2, arg3) => callback.bind(this)(event, arg1, arg2, arg3));
         });
 
-        socket.monitor(MONITOR_INTERVAL, MONITOR_EVENTSNR);
+        this._zmqSocketConnect(socket, address);
+
+        return socket;
+    }
+
+    /**
+     * Establishes the actual socket connection.
+     *
+     * @param      {Object}   socket              The ZeroMQ socket
+     * @param      {String}   address             The address
+     * @return     {Object}   The ZeroMQ socket.
+     */
+    _zmqSocketConnect(socket: Object, address: string) {
+        const MONITOR_INTERVAL = 500;
+        const MONITOR_EVENTSNR = 0;
+
         socket.connect(address);
+        socket.monitor(MONITOR_INTERVAL, MONITOR_EVENTSNR);
 
         return socket;
     }
@@ -148,7 +183,7 @@ export default class TDRS extends EventEmitter {
 
         // @flowIgnore "access of computed property/element. Indexable signature not found"
         const callback = this[callbackName];
-
+        this.log.debug(callbackName);
         if(typeof callback === 'function') {
             return callback.bind(this)(connection, args);
         }
@@ -164,6 +199,7 @@ export default class TDRS extends EventEmitter {
      * @return     {boolean}  True.
      */
     _publisherConnectCallback(connection: TdrsConnection, args: Array<Object>) {
+        this.log.debug('%j', connection.link);
         connection.publisher.connected = true;
         connection.publisher.retryCount = 0;
     }
@@ -176,6 +212,7 @@ export default class TDRS extends EventEmitter {
      * @return     {boolean}  True.
      */
     _publisherConnectDelayCallback(connection: TdrsConnection, args: Array<Object>) {
+        this.log.debug('%j', connection.link);
         connection.publisher.connected = false;
     }
 
@@ -187,6 +224,7 @@ export default class TDRS extends EventEmitter {
      * @return     {boolean}  True.
      */
     _publisherConnectRetryCallback(connection: TdrsConnection, args: Array<Object>) {
+        this.log.debug('%j', connection.link);
         connection.publisher.retryCount++;
         const maxRetries = this._configuration.connectRetryBeforeFailover || MAX_CONNECTION_RETRIES;
         if(connection.publisher.retryCount > maxRetries) {
@@ -203,6 +241,7 @@ export default class TDRS extends EventEmitter {
      * @return     {boolean}  True.
      */
     _publisherCloseCallback(connection: TdrsConnection, args: Array<Object>) {
+        this.log.debug('%j', connection.link);
         connection.publisher.connected = false;
     }
 
@@ -214,6 +253,7 @@ export default class TDRS extends EventEmitter {
      * @return     {boolean}  True.
      */
     _publisherCloseErrorCallback(connection: TdrsConnection, args: Array<Object>) {
+        this.log.debug('%j', connection.link);
         connection.publisher.connected = false;
     }
 
@@ -225,6 +265,7 @@ export default class TDRS extends EventEmitter {
      * @return     {boolean}  True.
      */
     _publisherDisconnectCallback(connection: TdrsConnection, args: Array<Object>) {
+        this.log.debug('%j', connection.link);
         connection.publisher.connected = false;
     }
 
@@ -236,6 +277,7 @@ export default class TDRS extends EventEmitter {
      * @return     {boolean}  True.
      */
     _publisherMonitorErrorCallback(connection: TdrsConnection, args: Array<Object>) {
+        this.log.debug('%j', connection.link);
     }
 
     /**
@@ -246,11 +288,17 @@ export default class TDRS extends EventEmitter {
      * @return     {boolean}  True.
      */
     _publisherMessageCallback(connection: TdrsConnection, args: Array<Object>) {
+        this.log.debug('%j', connection.link);
         if(!this._hasValidMessageCallbackArgs(args)) {
             throw new Error('_publisherMessageCallback got no message.');
         }
 
         const data = args[ARGS_INDEX_MESSAGE];
+
+        if(data.toString().toUpperCase() === 'TERMINATE') {
+            return this.emit('terminate');
+        }
+
         const dataHash = this._hash(data);
 
         let packet: TdrsPacket = this.cache(dataHash);
@@ -265,8 +313,10 @@ export default class TDRS extends EventEmitter {
             return true;
         }
 
-        this._decompress(data).then(uncompressedData => {
-            this.emit('message', uncompressedData);
+        this._decrypt(data).then(processedData => {
+            return this._decompress(processedData);
+        }).then(processedData => {
+            this.emit('message', processedData);
         }).catch(err => {
             throw new Error(err);
         });
@@ -282,6 +332,7 @@ export default class TDRS extends EventEmitter {
      * @return     {boolean}  True.
      */
     _receiverMessageCallback(connection: TdrsConnection, args: Array<Object>) {
+        this.log.debug('%j', connection.link);
         if(!this._hasValidMessageCallbackArgs(args)) {
             throw new Error('_receiverMessageCallback got no message.');
         }
@@ -318,6 +369,7 @@ export default class TDRS extends EventEmitter {
      * @return     {boolean}  True.
      */
     _receiverConnectCallback(connection: TdrsConnection, args: Array<Object>) {
+        this.log.debug('%j', connection.link);
         connection.receiver.connected = true;
         connection.receiver.retryCount = 0;
     }
@@ -330,6 +382,7 @@ export default class TDRS extends EventEmitter {
      * @return     {boolean}  True.
      */
     _receiverConnectDelayCallback(connection: TdrsConnection, args: Array<Object>) {
+        this.log.debug('%j', connection.link);
         connection.receiver.connected = false;
     }
 
@@ -341,6 +394,7 @@ export default class TDRS extends EventEmitter {
      * @return     {boolean}  True.
      */
     _receiverConnectRetryCallback(connection: TdrsConnection, args: Array<Object>) {
+        this.log.debug('%j', connection.link);
         connection.receiver.retryCount++;
         const maxRetries = this._configuration.connectRetryBeforeFailover || MAX_CONNECTION_RETRIES;
         if(connection.receiver.retryCount > maxRetries) {
@@ -357,6 +411,7 @@ export default class TDRS extends EventEmitter {
      * @return     {boolean}  True.
      */
     _receiverCloseCallback(connection: TdrsConnection, args: Array<Object>) {
+        this.log.debug('%j', connection.link);
         connection.receiver.connected = false;
     }
 
@@ -368,6 +423,7 @@ export default class TDRS extends EventEmitter {
      * @return     {boolean}  True.
      */
     _receiverCloseErrorCallback(connection: TdrsConnection, args: Array<Object>) {
+        this.log.debug('%j', connection.link);
         connection.receiver.connected = false;
     }
 
@@ -379,6 +435,7 @@ export default class TDRS extends EventEmitter {
      * @return     {boolean}  True.
      */
     _receiverDisconnectCallback(connection: TdrsConnection, args: Array<Object>) {
+        this.log.debug('%j', connection.link);
         connection.receiver.connected = false;
     }
 
@@ -390,6 +447,7 @@ export default class TDRS extends EventEmitter {
      * @return     {boolean}  True.
      */
     _receiverMonitorErrorCallback(connection: TdrsConnection, args: Array<Object>) {
+        this.log.debug('%j', connection.link);
     }
 
     /**
@@ -433,7 +491,8 @@ export default class TDRS extends EventEmitter {
         if(typeof connection.publisher.socket !== 'undefined'
         && connection.publisher.socket !== null
         && typeof connection.publisher.socket.close !== 'undefined') {
-            connection.publisher.socket.close();
+            this._zmqSocketConnect(connection.publisher.socket, connection.link.publisherAddress);
+            return connection;
         }
 
         connection.publisher.socket = this._zmqSocketConnection('sub', connection.link.publisherAddress, (event, arg1, arg2, arg3) => {
@@ -451,9 +510,14 @@ export default class TDRS extends EventEmitter {
      */
     _unsubscribe(connection: TdrsConnection) {
         if(typeof connection.publisher.socket !== 'undefined'
-        && connection.publisher.socket !== null
-        && typeof connection.publisher.socket.close !== 'undefined') {
-            connection.publisher.socket.close();
+        && connection.publisher.socket !== null) {
+            const unmonitor = connection.publisher.socket.unmonitor || ((x) => {});
+            const disconnect = connection.publisher.socket.disconnect || ((x) => {});
+
+            unmonitor.bind(connection.publisher.socket)();
+            disconnect.bind(connection.publisher.socket)(connection.link.publisherAddress);
+
+            connection.active = false;
         }
 
         return connection;
@@ -469,7 +533,8 @@ export default class TDRS extends EventEmitter {
         if(typeof connection.receiver.socket !== 'undefined'
         && connection.receiver.socket !== null
         && typeof connection.receiver.socket.close !== 'undefined') {
-            connection.receiver.socket.close();
+            this._zmqSocketConnect(connection.receiver.socket, connection.link.receiverAddress);
+            return connection;
         }
 
         connection.receiver.socket = this._zmqSocketConnection('req', connection.link.receiverAddress, (event, arg1, arg2, arg3) => {
@@ -487,9 +552,13 @@ export default class TDRS extends EventEmitter {
      */
     _disconnect(connection: TdrsConnection) {
         if(typeof connection.receiver.socket !== 'undefined'
-        && connection.receiver.socket !== null
-        && typeof connection.receiver.socket.close !== 'undefined') {
-            connection.receiver.socket.close();
+        && connection.receiver.socket !== null) {
+            const unmonitor = connection.receiver.socket.unmonitor || ((x) => {});
+            const disconnect = connection.receiver.socket.disconnect || ((x) => {});
+
+            unmonitor.bind(connection.receiver.socket)();
+            disconnect.bind(connection.receiver.socket)(connection.link.receiverAddress);
+
             connection.active = false;
         }
 
@@ -522,24 +591,37 @@ export default class TDRS extends EventEmitter {
      * @return     {boolean}  True
      */
     _mapLinksToConnections() {
-        this._connections = [];
         this._configuration.links.forEach((link: TdrsLink) => {
-            const connection: TdrsConnection = {
-                'active': false,
-                'link': link,
-                'publisher': {
-                    'socket': null,
-                    'connected': false,
-                    'retryCount': 0
-                },
-                'receiver': {
-                    'socket': null,
-                    'connected': false,
-                    'retryCount': 0
-                }
-            };
+            let found: boolean = false;
 
-            this._connections.push(connection);
+            this._connections.forEach((connection: TdrsConnection) => {
+                if(connection.link.receiverAddress === link.receiverAddress
+                && connection.link.publisherAddress === link.publisherAddress) {
+                    found = true;
+                    return false;
+                }
+
+                return true;
+            });
+
+            if(found === false) {
+                const connection: TdrsConnection = {
+                    'active': false,
+                    'link': link,
+                    'publisher': {
+                        'socket': null,
+                        'connected': false,
+                        'retryCount': 0
+                    },
+                    'receiver': {
+                        'socket': null,
+                        'connected': false,
+                        'retryCount': 0
+                    }
+                };
+
+                this._connections.push(connection);
+            }
         });
 
         return true;
@@ -559,20 +641,21 @@ export default class TDRS extends EventEmitter {
      * Compresses & decompresses data.
      *
      * @param      {String}   action              The action, either "compress" or "decompress"
-     * @param      {*}        data                The data
+     * @param      {Buffer}   data                The data
      * @return     {Promise}  Promise that fulfills or rejects.
      */
-    _compression(action: string, data: any) {
+    _compression(action: string, data: Buffer) {
         return new Promise((fulfill, reject) => {
-            if(this._configuration.compression === false) {
+            if(typeof this._configuration.compression === 'undefined'
+            || this._configuration.compression === null) {
                 return fulfill(data);
             }
 
-            const compressionAlgorithm = this._configuration.compressionAlgorithm || 'gzip';
+            const compression = this._configuration.compression;
 
             let handler = null;
 
-            switch(compressionAlgorithm.toLowerCase()) {
+            switch(compression.toLowerCase()) {
             case 'gzip':
                 if(action === 'compress') {
                     handler = zlib.gzip;
@@ -588,7 +671,7 @@ export default class TDRS extends EventEmitter {
                 }
                 break;
             default:
-                throw new Error('Unknown compression "' + compressionAlgorithm + '".');
+                throw new Error('Unknown compression "' + compression + '".');
             }
 
             return handler(data, (err, processedData) => {
@@ -604,21 +687,80 @@ export default class TDRS extends EventEmitter {
     /**
      * Wraps compressor, compresses data.
      *
-     * @param      {*}        data                The data
+     * @param      {Buffer}   data                The data
      * @return     {Promise}  Promise that fulfills or rejects.
      */
-    _compress(data: any) {
+    _compress(data: Buffer) {
         return this._compression('compress', data);
     }
 
     /**
      * Wraps compressor, decompresses data.
      *
-     * @param      {*}        data                The data
+     * @param      {Buffer}   data                The data
      * @return     {Promise}  Promise that fulfills or rejects.
      */
-    _decompress(data: any) {
+    _decompress(data: Buffer) {
         return this._compression('decompress', data);
+    }
+
+    /**
+     * Encrypts & decrypts data.
+     *
+     * @param      {String}   action              The action, either "encrypt" or "decrypt"
+     * @param      {Buffer}   data                The data
+     * @return     {Promise}  Promise that fulfills or rejects.
+     */
+    _encryption(action: string, data: Buffer) {
+        return new Promise((fulfill, reject) => {
+            if(typeof this._configuration.encryption === 'undefined'
+            || this._configuration.encryption === null
+            || typeof this._configuration.encryptionKey === 'undefined'
+            || this._configuration.encryptionKey === null) {
+                return fulfill(data);
+            }
+
+            const encryption = this._configuration.encryption;
+            const encryptionKey = this._configuration.encryptionKey;
+
+            let processedData = null;
+
+            switch(encryption.toLowerCase()) {
+            case 'aes-256-ctr':
+                if(action === 'encrypt') {
+                    let cipher = crypto.createCipher(encryption.toLowerCase(), encryptionKey);
+                    processedData = Buffer.concat([cipher.update(data), cipher.final()]);
+                } else {
+                    let decipher = crypto.createDecipher(encryption.toLowerCase(), encryptionKey);
+                    processedData = Buffer.concat([decipher.update(data), decipher.final()]);
+                }
+                break;
+            default:
+                throw new Error('Unknown encryption "' + encryption + '".');
+            }
+
+            return fulfill(processedData);
+        });
+    }
+
+    /**
+     * Wraps encryption, encrypts data.
+     *
+     * @param      {Buffer}   data                The data
+     * @return     {Promise}  Promise that fulfills or rejects.
+     */
+    _encrypt(data: Buffer) {
+        return this._encryption('encrypt', data);
+    }
+
+    /**
+     * Wraps encryption, decrypts data.
+     *
+     * @param      {Buffer}   data                The data
+     * @return     {Promise}  Promise that fulfills or rejects.
+     */
+    _decrypt(data: Buffer) {
+        return this._encryption('decrypt', data);
     }
 
     /**
@@ -667,6 +809,7 @@ export default class TDRS extends EventEmitter {
      * @return     {boolean}  True
      */
     connect() {
+        this.log.debug('connect');
         const zero = 0;
         const one = 1;
 
@@ -683,9 +826,10 @@ export default class TDRS extends EventEmitter {
         const connectionIndex: number = this._randomInteger(zero, (this._connections.length - one));
         let connection: TdrsConnection = this._connections[connectionIndex];
 
-        connection.active = true;
+        this.log.debug('Connecting to %s ...', connection.link.publisherAddress);
         this._subscribe(connection);
         this._connect(connection);
+        connection.active = true;
 
         return true;
     }
@@ -696,10 +840,12 @@ export default class TDRS extends EventEmitter {
      * @return     {boolean}  True
      */
     disconnect() {
+        this.log.debug('disconnect');
         let connection: ?TdrsConnection = this._getActiveConnection();
 
         if(typeof connection === 'undefined'
         || connection === null) {
+            this.log.debug('Disconnect: No active connection!');
             return true;
         }
 
@@ -716,6 +862,7 @@ export default class TDRS extends EventEmitter {
      * @return     {boolean}  True
      */
     reconnect() {
+        this.log.debug('reconnect');
         this.disconnect();
         this.connect();
 
@@ -743,18 +890,20 @@ export default class TDRS extends EventEmitter {
 
             const receiverSocket = connection.receiver.socket;
 
-            return this._compress(new Buffer(data)).then(compressedData => {
-                const dataHash = this._hash(compressedData);
+            return this._compress(new Buffer(data)).then(processedData => {
+                return this._encrypt(processedData);
+            }).then(processedData => {
+                const dataHash = this._hash(processedData);
 
                 let packet: TdrsPacket = {
-                    'data': compressedData,
+                    'data': processedData,
                     'status': 'sending'
                 };
 
                 this.cache(dataHash, packet);
 
                 const socketFlags = 0;
-                return receiverSocket.send(compressedData, socketFlags, (socket, error) => {
+                return receiverSocket.send(processedData, socketFlags, (socket, error) => {
                     if(typeof error !== 'undefined'
                     && error !== null) {
                         this.uncache(dataHash);
