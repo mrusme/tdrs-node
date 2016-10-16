@@ -1,0 +1,70 @@
+{
+  "name": "tdrs",
+  "version": "1.0.0",
+  "description": "TDRS Node.js module",
+  "main": "lib/index.js",
+  "scripts": {
+    "start": "echo \"Nothing to start. Performing 'npm run compile' ...\" && npm run compile",
+    "flow": "flow",
+    "compile": "gulp",
+    "prepublish": "npm run compile",
+    "test": "ava"
+  },
+  "engines": {
+    "node": ">=4.6.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/weltraumco/tdrs-node.git"
+  },
+  "keywords": [
+    "tdrs",
+    "weltraum",
+    "zeromq",
+    "event",
+    "hub"
+  ],
+  "author": {
+    "name": "Weltraum",
+    "email": "houston@weltraum.co",
+    "url": "https://weltraum.co"
+  },
+  "contributors": [
+    {
+      "name": "Marius M.",
+      "email": "marius@twostairs.com",
+      "url": "https://twostairs.com"
+    }
+  ],
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/weltraumco/tdrs-node/issues"
+  },
+  "homepage": "https://github.com/weltraumco/tdrs-node#readme",
+  "devDependencies": {
+    "ava": "^0.16.0",
+    "babel-cli": "^6.16.0",
+    "babel-eslint": "^7.0.0",
+    "babel-preset-latest-node6": "^0.1.0",
+    "babel-plugin-transform-flow-strip-types": "^6.14.0",
+    "eslint-plugin-ava": "^3.1.1",
+    "eslint-plugin-flowtype": "^2.19.0",
+    "flow-bin": "^0.33.0",
+    "gulp": "^3.9.1",
+    "gulp-babel": "^6.1.2",
+    "gulp-concat": "^2.6.0",
+    "gulp-eslint": "^3.0.1",
+    "gulp-jsdoc3": "^1.0.0",
+    "gulp-shell": "^0.5.2",
+    "gulp-sourcemaps": "^2.1.1",
+    "gulp-watch": "^4.3.10",
+    "minami": "^1.1.1",
+    "path": "^0.12.7",
+    "rimraf": "^2.5.4",
+    "run-sequence": "^1.2.2"
+  },
+  "dependencies": {
+    "node-uuid": "^1.4.7",
+    "zmq": "^2.15.3"
+  }
+}

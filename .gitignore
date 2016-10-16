@@ -35,3 +35,16 @@ jspm_packages
 
 # Optional REPL history
 .node_repl_history
+
+# Generated documentation
+docs
+
+# Other stuff
+*.tmlanguage.cache
+*.tmPreferences.cache
+*.stTheme.cache
+*.sublime-workspace
+sftp-config.json
+.DS_Store
+/.idea/
+/lib
