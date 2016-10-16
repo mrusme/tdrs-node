@@ -6,7 +6,9 @@ const tdrs = new TDRS({
             'publisherAddress': 'tcp://localhost:19791'
         }
     ],
-    'compression': false,
+    'connectRetryBeforeFailover': 1,
+    'compression': true,
+    'compressionAlgorithm': 'gzip',
     'encryption': false
 });
 
