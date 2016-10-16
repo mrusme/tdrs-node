@@ -1,4 +1,4 @@
 //@flow
 'use strict';
 
-export * from './TDRS';
+export { default as TDRS } from './TDRS';
