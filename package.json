@@ -8,7 +8,8 @@
     "flow": "flow",
     "compile": "gulp",
     "prepublish": "npm run compile",
-    "test": "ava"
+    "test": "ava",
+    "SimpleClient": "node ./examples/SimpleClient.js | bunyan"
   },
   "engines": {
     "node": ">=4.6.0"
