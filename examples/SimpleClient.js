@@ -3,6 +3,7 @@ const logger = bunyan.createLogger({
     'name': 'SimpleClient',
     'level': 10,
 });
+
 const TDRS = require('../lib/index.js').TDRS;
 const tdrs = new TDRS({
     'links': [
@@ -30,13 +31,14 @@ tdrs.on('message', message => {
     console.log(message.toString());
 });
 
-tdrs.on('terminate', () => {
-    tdrs.disconnect();
-    process.exit(0);
-});
+// tdrs.on('terminate', () => {
+//     tdrs.disconnect();
+//     process.exit(0);
+// });
 
 tdrs.connect();
 
 setInterval(() => {
+    console.log('Sending message ...');
     tdrs.send(JSON.stringify({ 'id': (Math.floor(Math.random() * 1024)), 'text': 'Hello World' }));
 }, 1000);

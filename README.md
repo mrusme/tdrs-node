@@ -1,2 +1,3 @@
 # tdrs-node
-TDRS Node.js module
+[TDRS](https://github.com/weltraumco/tdrs) client reference implementation as Node.js module.
+

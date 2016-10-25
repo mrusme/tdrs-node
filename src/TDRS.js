@@ -42,6 +42,16 @@ type TdrsPacket = {
     status: string
 };
 
+type TdrsPeerMessage = {
+    event: string,
+    id: string,
+    publisherAddress: string,
+    receiverAddress: string,
+    key: string
+};
+
+const ZERO = 0;
+
 const ARGS_INDEX_START = 0;
 const ARGS_INDEX_MESSAGE = 0;
 
@@ -50,6 +60,9 @@ const RECEIVER_RESPONSE_STATUS_END = 3;
 const RECEIVER_RESPONSE_HASH_START = 4;
 
 const MAX_CONNECTION_RETRIES = 1024;
+
+const TDRS_MESSAGE_TERMINATE = 'TERMINATE';
+const TDRS_MESSAGE_PEER_PREAMBLE = 'PEER:';
 
 /**
  * TDRS Class
@@ -295,8 +308,31 @@ export default class TDRS extends EventEmitter {
 
         const data = args[ARGS_INDEX_MESSAGE];
 
-        if(data.toString().toUpperCase() === 'TERMINATE') {
+        if(data.toString().toUpperCase() === TDRS_MESSAGE_TERMINATE) {
             return this.emit('terminate');
+        } else if(data.toString().substr(ZERO, TDRS_MESSAGE_PEER_PREAMBLE.length).toUpperCase() === TDRS_MESSAGE_PEER_PREAMBLE) {
+            const pm: ?TdrsPeerMessage = this._parsePeerMessage(data.toString());
+
+            if(typeof pm === 'undefined' || pm === null) {
+                return true;
+            }
+
+            const link: TdrsLink = {
+                'publisherAddress': pm.publisherAddress,
+                'receiverAddress': pm.receiverAddress
+            };
+
+            switch(pm.event.toUpperCase()) {
+            case 'ENTER':
+                this._addLinkToConfiguration(link);
+                this._mapLinksToConnections();
+                return this.emit('peer-entered', link);
+            case 'EXIT':
+                // TODO: Remove peer from connections.
+                return this.emit('peer-exited', link);
+            default:
+                return true;
+            }
         }
 
         const dataHash = this._hash(data);
@@ -357,7 +393,6 @@ export default class TDRS extends EventEmitter {
         }
 
         // TODO: Handle delivery retry
-
         return true;
     }
 
@@ -628,6 +663,42 @@ export default class TDRS extends EventEmitter {
     }
 
     /**
+     * Determines if link is available in configuration.
+     *
+     * @param      {Object}   link                The TDRS link
+     * @return     {boolean}  True if link is in configuration, False otherwise.
+     */
+    _isLinkInConfiguration(link: TdrsLink) {
+        let found: boolean = false;
+
+        this._configuration.links.forEach((existingLink: TdrsLink) => {
+            if(existingLink.receiverAddress === link.receiverAddress
+            && existingLink.publisherAddress === link.publisherAddress) {
+                found = true;
+                return false;
+            }
+
+            return true;
+        });
+
+        return found;
+    }
+
+    /**
+     * Adds a link to configuration.
+     *
+     * @param      {Object}   link                The TDRS link
+     * @return     {boolean}  Always True.
+     */
+    _addLinkToConfiguration(link: TdrsLink) {
+        if(!this._isLinkInConfiguration(link)) {
+            this._configuration.links.push(link);
+        }
+
+        return true;
+    }
+
+    /**
      * Hashes data using SHA1.
      *
      * @param      {*}        data                The data
@@ -635,6 +706,40 @@ export default class TDRS extends EventEmitter {
      */
     _hash(data: any) {
         return crypto.createHash('sha1').update(data).digest('hex').toUpperCase();
+    }
+
+    /**
+     * Parses PEER message.
+     *
+     * @param      {string}   message             The message
+     * @return     {Object?}  The TDRS peer message object or NULL.
+     */
+    _parsePeerMessage(message: string) {
+        const PM_EVENT_INDEX = 1;
+        const PM_ID_INDEX = 2;
+        const PM_PUB_PTCL_INDEX = 3;
+        const PM_PUB_ADDR_INDEX = 4;
+        const PM_PUB_PORT_INDEX = 5;
+        const PM_REC_PTCL_INDEX = 6;
+        const PM_REC_ADDR_INDEX = 7;
+        const PM_REC_PORT_INDEX = 8;
+        const PM_KEY_INDEX = 9;
+        const peerMessageRegex = /PEER:([a-zA-Z]+):([a-zA-Z0-9]+):([a-zA-Z]+):([0-9\.]+):([0-9]+):([a-zA-Z]+):([0-9\.]+):([0-9]+):(.+)/gi;
+        const match = peerMessageRegex.exec(message);
+
+        if(typeof match === 'undefined' || match === null) {
+            return null;
+        }
+
+        const peerMessage: TdrsPeerMessage = {
+            'event': match[PM_EVENT_INDEX],
+            'id': match[PM_ID_INDEX],
+            'publisherAddress': match[PM_PUB_PTCL_INDEX] + '://' + match[PM_PUB_ADDR_INDEX] + (match[PM_PUB_PORT_INDEX] !== '' ? (':' + match[PM_PUB_PORT_INDEX]) : ''),
+            'receiverAddress': match[PM_REC_PTCL_INDEX] + '://' + match[PM_REC_ADDR_INDEX] + (match[PM_REC_PORT_INDEX] !== '' ? (':' + match[PM_REC_PORT_INDEX]) : ''),
+            'key': match[PM_KEY_INDEX]
+        };
+
+        return peerMessage;
     }
 
     /**
