@@ -9,6 +9,7 @@ import crypto from 'crypto';
 import zlib from 'zlib';
 
 type TdrsLink = {
+    id: ?string,
     publisherAddress: string,
     receiverAddress: string
 };
@@ -46,8 +47,7 @@ type TdrsPeerMessage = {
     event: string,
     id: string,
     publisherAddress: string,
-    receiverAddress: string,
-    key: string
+    receiverAddress: string
 };
 
 const ZERO = 0;
@@ -318,6 +318,7 @@ export default class TDRS extends EventEmitter {
             }
 
             const link: TdrsLink = {
+                'id': pm.id,
                 'publisherAddress': pm.publisherAddress,
                 'receiverAddress': pm.receiverAddress
             };
@@ -329,6 +330,9 @@ export default class TDRS extends EventEmitter {
                 return this.emit('peer-entered', link);
             case 'EXIT':
                 // TODO: Remove peer from connections.
+                if(this._removeLinkFromConfigurationById(pm.id)) {
+                    this._unmapNonexistentLinksFromConnections(true);
+                }
                 return this.emit('peer-exited', link);
             default:
                 return true;
@@ -630,8 +634,9 @@ export default class TDRS extends EventEmitter {
             let found: boolean = false;
 
             this._connections.forEach((connection: TdrsConnection) => {
-                if(connection.link.receiverAddress === link.receiverAddress
-                && connection.link.publisherAddress === link.publisherAddress) {
+                if(connection.link.id === link.id
+                || (connection.link.receiverAddress === link.receiverAddress
+                && connection.link.publisherAddress === link.publisherAddress)) {
                     found = true;
                     return false;
                 }
@@ -663,6 +668,39 @@ export default class TDRS extends EventEmitter {
     }
 
     /**
+     * Unmaps nonexistent TdrsLinks from TdrsConnection-array.
+     *
+     * @param      {boolean}  disconnectFirst     Whether to disconnect before removal
+     * @return     {boolean}  True
+     */
+    _unmapNonexistentLinksFromConnections(disconnectFirst: boolean) {
+        this._connections = this._connections.filter((connection: TdrsConnection) => {
+            let found: boolean = false;
+
+            this._configuration.links.forEach((link: TdrsLink) => {
+                if(connection.link.id === link.id
+                || (connection.link.receiverAddress === link.receiverAddress
+                && connection.link.publisherAddress === link.publisherAddress)) {
+                    found = true;
+
+                    if(disconnectFirst === true) {
+                        this._unsubscribe(connection);
+                        this._disconnect(connection);
+                    }
+
+                    return false;
+                }
+
+                return true;
+            });
+
+            return found;
+        });
+
+        return true;
+    }
+
+    /**
      * Determines if link is available in configuration.
      *
      * @param      {Object}   link                The TDRS link
@@ -685,6 +723,30 @@ export default class TDRS extends EventEmitter {
     }
 
     /**
+     * Determines the index of a link in configuration.
+     *
+     * @param      {Object}   link                The TDRS link
+     * @return     {number}   Positive integer if found, -1 if not.
+     */
+    _indexLinkInConfiguration(link: TdrsLink) {
+        let index: number = -1;
+        let counter: number = ZERO;
+
+        for(counter = ZERO; counter < this._configuration.links.length; counter++) {
+            const existingLink = this._configuration.links[counter];
+
+            if(existingLink.id === link.id
+            || (existingLink.receiverAddress === link.receiverAddress
+            && existingLink.publisherAddress === link.publisherAddress)) {
+                index = counter;
+                break;
+            }
+        }
+
+        return index;
+    }
+
+    /**
      * Adds a link to configuration.
      *
      * @param      {Object}   link                The TDRS link
@@ -696,6 +758,28 @@ export default class TDRS extends EventEmitter {
         }
 
         return true;
+    }
+
+    /**
+     * Removes a link from configuration.
+     *
+     * @param      {string}   id                  The TDRS link
+     * @return     {boolean}  True if found and removed, False if not.
+     */
+    _removeLinkFromConfigurationById(id: string) {
+        const ONE_ELEMENT = 1;
+        let index = this._indexLinkInConfiguration({
+            'id': id,
+            'receiverAddress': '',
+            'publisherAddress': ''
+        });
+
+        if(index > ZERO) {
+            this._configuration.links.splice(index, ONE_ELEMENT);
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -723,8 +807,7 @@ export default class TDRS extends EventEmitter {
         const PM_REC_PTCL_INDEX = 6;
         const PM_REC_ADDR_INDEX = 7;
         const PM_REC_PORT_INDEX = 8;
-        const PM_KEY_INDEX = 9;
-        const peerMessageRegex = /PEER:([a-zA-Z]+):([a-zA-Z0-9]+):([a-zA-Z]+):([0-9\.]+):([0-9]+):([a-zA-Z]+):([0-9\.]+):([0-9]+):(.+)/gi;
+        const peerMessageRegex = /PEER:([a-zA-Z]+):([a-zA-Z0-9]+):([a-zA-Z\*]+):([0-9\.\*]+):([0-9\*]+):([a-zA-Z\*]+):([0-9\.\*]+):([0-9\*]+)/gi;
         const match = peerMessageRegex.exec(message);
 
         if(typeof match === 'undefined' || match === null) {
@@ -735,8 +818,7 @@ export default class TDRS extends EventEmitter {
             'event': match[PM_EVENT_INDEX],
             'id': match[PM_ID_INDEX],
             'publisherAddress': match[PM_PUB_PTCL_INDEX] + '://' + match[PM_PUB_ADDR_INDEX] + (match[PM_PUB_PORT_INDEX] !== '' ? (':' + match[PM_PUB_PORT_INDEX]) : ''),
-            'receiverAddress': match[PM_REC_PTCL_INDEX] + '://' + match[PM_REC_ADDR_INDEX] + (match[PM_REC_PORT_INDEX] !== '' ? (':' + match[PM_REC_PORT_INDEX]) : ''),
-            'key': match[PM_KEY_INDEX]
+            'receiverAddress': match[PM_REC_PTCL_INDEX] + '://' + match[PM_REC_ADDR_INDEX] + (match[PM_REC_PORT_INDEX] !== '' ? (':' + match[PM_REC_PORT_INDEX]) : '')
         };
 
         return peerMessage;
