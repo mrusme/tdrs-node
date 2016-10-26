@@ -8,7 +8,7 @@
     "flow": "flow",
     "compile": "gulp",
     "prepublish": "npm run compile",
-    "test": "ava",
+    "test": "npm run compile && ava",
     "SimpleClient": "node ./examples/SimpleClient.js | bunyan"
   },
   "engines": {
@@ -42,6 +42,17 @@
     "url": "https://github.com/weltraumco/tdrs-node/issues"
   },
   "homepage": "https://github.com/weltraumco/tdrs-node#readme",
+  "ava": {
+    "require": "babel-register",
+    "babel": "inherit",
+    "files": [
+      "src/test/**/*Test.js"
+    ],
+    "source": [
+      "src/**/*.js",
+      "!src/test/**/*"
+    ]
+  },
   "devDependencies": {
     "ava": "^0.16.0",
     "babel-cli": "^6.16.0",

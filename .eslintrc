@@ -15,7 +15,8 @@
         "modules": true
     },
     "plugins": [
-        "ava"
+        "ava",
+        "flowtype"
     ],
     "rules": {
         "indent": [2, 4],
