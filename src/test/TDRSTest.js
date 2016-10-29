@@ -81,6 +81,7 @@ const initializeDefaultTdrs = (params: ?Object) => {
             DEFAULT_LINK_TWO,
             DEFAULT_LINK_THREE
         ],
+        // 'discovery': true,
         'connectRetryBeforeFailover': 1,
         'compression': 'gzip',
         'encryption': 'aes-256-ctr',

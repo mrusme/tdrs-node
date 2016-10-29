@@ -1,5 +1,6 @@
 //@flow
 'use strict';
+import cp from 'child_process';
 import Promise from 'bluebird';
 import EventEmitter from 'events';
 import zmq from 'zmq';
@@ -39,6 +40,7 @@ export default class TDRS extends EventEmitter {
     _connections:           Array<TdrsConnection>
     _identity:              String
     _cache:                 Function
+    _discoveryChild:        Function
 
     /**
      * Constructs the class.
@@ -47,7 +49,7 @@ export default class TDRS extends EventEmitter {
      */
     constructor(configuration: TdrsConfiguration) {
         super();
-        this._configuration = configuration;
+        this._configuration = configuration || { 'links': [] };
         this._connections = [];
         this._identity = uuid.v4();
         this._cache = new Cache({
@@ -55,6 +57,30 @@ export default class TDRS extends EventEmitter {
             'checkperiod': 0,
             'errorOnMissing': false
         });
+
+        if(this._configuration.hasOwnProperty('discovery')) {
+            if(this._configuration.hasOwnProperty('links')
+            && this._configuration.links.length > ZERO) {
+                throw new Error('Service discovery cannot be enabled when links were pre-defined.');
+            } else {
+                this._configuration.links = [];
+            }
+
+            // @flowIgnore child_process
+            this._discoveryChild = cp.fork(__dirname + '/../lib/Discovery');
+
+            this._discoveryChild.on('message', message => {
+                this._processPeerMessage(message);
+
+                try {
+                    this.connect();
+                } catch(err) {
+                    this.log.debug(err);
+                }
+
+                return true;
+            });
+        }
     }
 
     /**
@@ -278,31 +304,15 @@ export default class TDRS extends EventEmitter {
         if(data.toString().toUpperCase() === TDRS_MESSAGE_TERMINATE) {
             return this.emit('terminate');
         } else if(data.toString().substr(ZERO, TDRS_MESSAGE_PEER_PREAMBLE.length).toUpperCase() === TDRS_MESSAGE_PEER_PREAMBLE) {
-            const pm: ?TdrsPeerMessage = this._parsePeerMessage(data.toString());
+            this._processPeerMessage(data.toString());
 
-            if(typeof pm === 'undefined' || pm === null) {
-                return true;
+            try {
+                this.connect();
+            } catch(err) {
+                this.log.debug(err);
             }
 
-            const link: TdrsLink = {
-                'id': pm.id,
-                'publisherAddress': pm.publisherAddress,
-                'receiverAddress': pm.receiverAddress
-            };
-
-            switch(pm.event.toUpperCase()) {
-            case 'ENTER':
-                this._addLinkToConfiguration(link);
-                this._mapConfiguredLinksToConnections();
-                return this.emit('peer-entered', link);
-            case 'EXIT':
-                if(this._removeLinkFromConfigurationById(pm.id)) {
-                    this._unmapNonexistentConfiguredLinksFromConnections(true);
-                }
-                return this.emit('peer-exited', link);
-            default:
-                return true;
-            }
+            return true;
         }
 
         const dataHash = this._hash(data);
@@ -865,6 +875,52 @@ export default class TDRS extends EventEmitter {
     }
 
     /**
+     * Converts TDRS peer message to TDRS link.
+     *
+     * @param      {Object}   peerMessage         TDRS peer message
+     * @return     {Object}   The TDRS link object.
+     */
+    _peerMessageToLink(peerMessage: TdrsPeerMessage): TdrsLink {
+        const link: TdrsLink = {
+            'id': peerMessage.id,
+            'publisherAddress': peerMessage.publisherAddress,
+            'receiverAddress': peerMessage.receiverAddress
+        };
+
+        return link;
+    }
+
+    /**
+     * Processes PEER message.
+     *
+     * @param      {string}   message             The message
+     * @return     {boolean}  True if processed, False otherwise.
+     */
+    _processPeerMessage(message: string): boolean {
+        const pm: ?TdrsPeerMessage = this._parsePeerMessage(message);
+
+        if(typeof pm === 'undefined' || pm === null) {
+            return false;
+        }
+
+        const link = this._peerMessageToLink(pm);
+
+        switch(pm.event.toUpperCase()) {
+        case 'ENTER':
+            this._addLinkToConfiguration(link);
+            this._mapConfiguredLinksToConnections();
+            return this.emit('peer-entered', link);
+        case 'EXIT':
+            if(this._removeLinkFromConfigurationById(pm.id)) {
+                this._unmapNonexistentConfiguredLinksFromConnections(true);
+            }
+            return this.emit('peer-exited', link);
+        default:
+            return false;
+        }
+    }
+
+    /**
      * Compresses & decompresses data.
      *
      * @param      {String}   action              The action, either "compress" or "decompress"
@@ -1051,7 +1107,7 @@ export default class TDRS extends EventEmitter {
     /**
      * Connects to the TDRS service.
      *
-     * @return     {boolean}  True
+     * @return     {boolean}  True, False otherwise.
      */
     connect() {
         this.log.debug('connect');
@@ -1062,8 +1118,14 @@ export default class TDRS extends EventEmitter {
             throw new Error('connect: Active connections already available. Please disconnect first.');
         }
 
-        if(this._configuration.links.length < one) {
+        if(this._configuration.discovery !== true
+        && this._configuration.links.length < one) {
             throw new Error('connect: No links specified.');
+        }
+
+        if(this._configuration.discovery === true
+        && this._configuration.links.length < one) {
+            return false;
         }
 
         this.log.debug('Number of configured links: %s', this._configuration.links.length);

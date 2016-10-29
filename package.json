@@ -4,12 +4,14 @@
   "description": "TDRS Node.js module",
   "main": "lib/index.js",
   "scripts": {
+    "install": "cd ext/zyre/bindings/nodejs && npm install node-ninja bindings nan prebuild && PATH=./node_modules/.bin/:$PATH ./build.sh && cd ../../../../ && mkdir -p ./build && mv ./ext/zyre/bindings/nodejs/build/Release/zyre.node ./build/zyre.node",
     "start": "echo \"Nothing to start. Performing 'npm run compile' ...\" && npm run compile",
     "flow": "flow",
     "compile": "gulp",
     "prepublish": "npm run compile",
     "test": "npm run compile && ava -v",
-    "SimpleClient": "node ./examples/SimpleClient.js | bunyan"
+    "SimpleClient": "node ./examples/SimpleClient.js | bunyan",
+    "DiscoveryClient": "node ./examples/DiscoveryClient.js | bunyan"
   },
   "engines": {
     "node": ">=5.0.0"

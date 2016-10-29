@@ -5,7 +5,8 @@ export type TdrsLink = {
 };
 
 export type TdrsConfiguration = {
-    links: Array<TdrsLink>,
+    links: ?Array<TdrsLink>,
+    discovery: ?boolean,
     connectRetryBeforeFailover: ?number,
     sendTimeout: ?number,
     compression: ?string,
