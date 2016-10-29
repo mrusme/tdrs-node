@@ -68,12 +68,12 @@ export default class TDRS extends EventEmitter {
         }
 
         return {
-            'fatal': () => {},
-            'error': () => {},
-            'warn': () => {},
-            'info': () => {},
-            'debug': () => {},
-            'trace': () => {}
+            'fatal': () => true,
+            'error': () => true,
+            'warn': () => true,
+            'info': () => true,
+            'debug': () => true,
+            'trace': () => true
         };
     }
 
@@ -292,12 +292,12 @@ export default class TDRS extends EventEmitter {
             switch(pm.event.toUpperCase()) {
             case 'ENTER':
                 this._addLinkToConfiguration(link);
-                this._mapLinksToConnections();
+                this._mapConfiguredLinksToConnections();
                 return this.emit('peer-entered', link);
             case 'EXIT':
                 // TODO: Remove peer from connections.
                 if(this._removeLinkFromConfigurationById(pm.id)) {
-                    this._unmapNonexistentLinksFromConnections(true);
+                    this._unmapNonexistentConfiguredLinksFromConnections(true);
                 }
                 return this.emit('peer-exited', link);
             default:
@@ -575,7 +575,7 @@ export default class TDRS extends EventEmitter {
      *
      * @return     {Object}   The active TDRS connection.
      */
-    _getActiveConnection() {
+    _getActiveConnection(): ?TdrsConnection {
         let activeConnection: ?TdrsConnection = null;
 
         this._connections.forEach(connection => {
@@ -591,26 +591,46 @@ export default class TDRS extends EventEmitter {
     }
 
     /**
+     * Finds connection for link.
+     *
+     * @param      {Object}   link                The TDRS link
+     * @return     {Object}   TDRS connection if found, NULL otherwise.
+     */
+    _findConnectionForLink(link: TdrsLink) {
+        let found: ?TdrsConnection = null;
+
+        this._connections.forEach((connection: TdrsConnection) => {
+            if(connection.link.id === link.id
+            || (connection.link.receiverAddress === link.receiverAddress
+            && connection.link.publisherAddress === link.publisherAddress)) {
+                found = connection;
+                return false;
+            }
+
+            return true;
+        });
+
+        return found;
+    }
+
+    /**
+     * Determines if configured link is in connections.
+     *
+     * @param      {Object}   link                The TDRS link
+     * @return     {boolean}  True if configured link is found, False otherwise.
+     */
+    _isConfiguredLinkInConnections(link: TdrsLink) {
+        return this._findConnectionForLink(link) !== null;
+    }
+
+    /**
      * Maps TdrsLinks to TdrsConnection-array.
      *
      * @return     {boolean}  True
      */
-    _mapLinksToConnections() {
+    _mapConfiguredLinksToConnections() {
         this._configuration.links.forEach((link: TdrsLink) => {
-            let found: boolean = false;
-
-            this._connections.forEach((connection: TdrsConnection) => {
-                if(connection.link.id === link.id
-                || (connection.link.receiverAddress === link.receiverAddress
-                && connection.link.publisherAddress === link.publisherAddress)) {
-                    found = true;
-                    return false;
-                }
-
-                return true;
-            });
-
-            if(found === false) {
+            if(!this._isConfiguredLinkInConnections(link)) {
                 const connection: TdrsConnection = {
                     'active': false,
                     'link': link,
@@ -639,7 +659,7 @@ export default class TDRS extends EventEmitter {
      * @param      {boolean}  disconnectFirst     Whether to disconnect before removal
      * @return     {boolean}  True
      */
-    _unmapNonexistentLinksFromConnections(disconnectFirst: boolean) {
+    _unmapNonexistentConfiguredLinksFromConnections(disconnectFirst: ?boolean) {
         this._connections = this._connections.filter((connection: TdrsConnection) => {
             let found: boolean = false;
 
@@ -716,14 +736,15 @@ export default class TDRS extends EventEmitter {
      * Adds a link to configuration.
      *
      * @param      {Object}   link                The TDRS link
-     * @return     {boolean}  Always True.
+     * @return     {boolean}  True when added, False if it existed already.
      */
     _addLinkToConfiguration(link: TdrsLink) {
         if(!this._isLinkInConfiguration(link)) {
             this._configuration.links.push(link);
+            return true;
         }
 
-        return true;
+        return false;
     }
 
     /**
@@ -764,7 +785,7 @@ export default class TDRS extends EventEmitter {
      * @param      {string}   message             The message
      * @return     {Object?}  The TDRS peer message object or NULL.
      */
-    _parsePeerMessage(message: string) {
+    _parsePeerMessage(message: string): ?TdrsPeerMessage {
         const PM_EVENT_INDEX = 1;
         const PM_ID_INDEX = 2;
         const PM_PUB_PTCL_INDEX = 3;
@@ -773,6 +794,7 @@ export default class TDRS extends EventEmitter {
         const PM_REC_PTCL_INDEX = 6;
         const PM_REC_ADDR_INDEX = 7;
         const PM_REC_PORT_INDEX = 8;
+        // PEER:<event>:<id>:<pub proto>:<pub addr>:<pub port>:<sub proto>:<sub addr>:<sub port>
         const peerMessageRegex = /PEER:([a-zA-Z]+):([a-zA-Z0-9]+):([a-zA-Z\*]+):([0-9\.\*]+):([0-9\*]+):([a-zA-Z\*]+):([0-9\.\*]+):([0-9\*]+)/gi;
         const match = peerMessageRegex.exec(message);
 
@@ -929,6 +951,24 @@ export default class TDRS extends EventEmitter {
     }
 
     /**
+     * Getter for configuration links.
+     *
+     * @return     {Array}    The links array
+     */
+    get configuredLinks(): Array<TdrsLink> {
+        return this._configuration.links;
+    }
+
+    /**
+     * Getter for connections.
+     *
+     * @return     {Array}    The configurations array
+     */
+    get connections(): Array<TdrsConnection> {
+        return this._connections;
+    }
+
+    /**
      * Caches or returns a cached packet.
      *
      * @param      {String}   identifier          The identifier string
@@ -974,7 +1014,7 @@ export default class TDRS extends EventEmitter {
             throw new Error('connect: No links specified.');
         }
 
-        this._mapLinksToConnections();
+        this._mapConfiguredLinksToConnections();
 
         const connectionIndex: number = this._randomInteger(zero, (this._connections.length - one));
         let connection: TdrsConnection = this._connections[connectionIndex];
