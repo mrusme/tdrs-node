@@ -1,5 +1,6 @@
 {
     "presets": [
+        "latest-node5",
         "latest-node6"
     ],
     "plugins": [

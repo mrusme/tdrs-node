@@ -46,7 +46,7 @@ gulp.task('babel', cb => {
     gulp.src([CONFIG.js.src])
         .pipe(sourcemaps.init())
         .pipe(babel({
-            presets: ['latest-node6'],
+            presets: ['latest-node5', 'latest-node6'],
             plugins: ['transform-flow-strip-types']
         }))
         .pipe(sourcemaps.write('.'))
