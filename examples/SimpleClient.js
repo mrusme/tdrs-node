@@ -43,5 +43,9 @@ tdrs.connect();
 
 setInterval(() => {
     console.log('Sending message ...');
-    tdrs.send(JSON.stringify({ 'id': (Math.floor(Math.random() * 1024)), 'text': 'Hello World' }));
+    tdrs.send(JSON.stringify({ 'id': (Math.floor(Math.random() * 1024)), 'text': 'Hello World' })).then(fulfillment => {
+        console.log(fulfillment);
+    }).catch(failure => {
+        console.log(failure);
+    });
 }, 1000);

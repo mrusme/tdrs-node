@@ -26,6 +26,7 @@ const RECEIVER_RESPONSE_STATUS_END = 3;
 const RECEIVER_RESPONSE_HASH_START = 4;
 
 const MAX_CONNECTION_RETRIES = 1024;
+const MAX_SEND_TIMEOUT = 3;
 
 const TDRS_MESSAGE_TERMINATE = 'TERMINATE';
 const TDRS_MESSAGE_PEER_PREAMBLE = 'PEER:';
@@ -570,6 +571,53 @@ export default class TDRS extends EventEmitter {
     }
 
     /**
+     * Queries for connectivity.
+     *
+     * @return     {Promise}  Fulfills with connection or rejects with timeout.
+     */
+    _queryConnectivity() {
+        return new Promise((fulfill, reject) => {
+            const oneSecond = 1000;
+            const connectivityTimeout = this._configuration.sendTimeout || MAX_SEND_TIMEOUT;
+            let connectivityIntervalCounter = 0;
+            let connectivityInterval = null;
+            const connectivityCheck = () => {
+                this.log.debug('Getting active connection for sending message ...');
+                const connection: ?TdrsConnection = this._getActiveConnection();
+
+                if(typeof connection !== 'undefined'
+                && connection !== null
+                && typeof connection.receiver !== 'undefined'
+                && connection.receiver !== null
+                && typeof connection.receiver.socket !== 'undefined'
+                && connection.receiver.socket !== null
+                && connection.publisher.connected === true
+                && connection.receiver.connected === true) {
+                    if(connectivityInterval !== null) {
+                        clearInterval(connectivityInterval);
+                    }
+
+                    fulfill(connection);
+                    return true;
+                }
+
+                connectivityIntervalCounter++;
+
+                if(connectivityIntervalCounter >= connectivityTimeout) {
+                    reject(new Error('No active connections available. Please connect first.'));
+                    return true;
+                }
+
+                return false;
+            };
+
+            if(connectivityCheck() === false) {
+                connectivityInterval = setInterval(connectivityCheck, oneSecond);
+            }
+        });
+    }
+
+    /**
      * Gets the active connection.
      *
      * @return     {Object}   The active TDRS connection.
@@ -1081,20 +1129,11 @@ export default class TDRS extends EventEmitter {
      */
     send(data: any) {
         return new Promise((fulfill, reject) => {
-            const connection: ?TdrsConnection = this._getActiveConnection();
-
-            if(typeof connection === 'undefined'
-            || connection === null
-            || typeof connection.receiver === 'undefined'
-            || connection.receiver === null
-            || typeof connection.receiver.socket === 'undefined'
-            || connection.receiver.socket === null) {
-                throw new Error('No active connections available. Please connect first.');
-            }
-
-            const receiverSocket = connection.receiver.socket;
-
-            return this._compress(new Buffer(data)).then(processedData => {
+            let receiverSocket = null;
+            return this._queryConnectivity().then(connection => {
+                receiverSocket = connection.receiver.socket;
+                return this._compress(new Buffer(data));
+            }).then(processedData => {
                 return this._encrypt(processedData);
             }).then(processedData => {
                 const dataHash = this._hash(processedData);
@@ -1106,18 +1145,28 @@ export default class TDRS extends EventEmitter {
 
                 this.cache(dataHash, packet);
 
+                if(receiverSocket === null) {
+                    return reject(new Error('No socket available.'));
+                }
+
                 const socketFlags = 0;
                 return receiverSocket.send(processedData, socketFlags, (socket, error) => {
                     if(typeof error !== 'undefined'
                     && error !== null) {
                         this.uncache(dataHash);
-                        throw new Error('Could not send data.');
+                        this.log.debug('Sending message failed:');
+                        this.log.debug(error);
+                        return reject(new Error(error));
                     }
 
                     packet.status = 'sent';
                     this.cache(dataHash, packet);
-                    fulfill(dataHash);
+                    this.log.debug('Message sent!');
+                    return fulfill(dataHash);
                 });
+            }).catch(err => {
+                this.log.error(err);
+                return reject(err);
             });
         });
     }

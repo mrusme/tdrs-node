@@ -7,6 +7,7 @@ export type TdrsLink = {
 export type TdrsConfiguration = {
     links: Array<TdrsLink>,
     connectRetryBeforeFailover: ?number,
+    sendTimeout: ?number,
     compression: ?string,
     encryption: ?string,
     encryptionKey: ?string,

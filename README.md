@@ -37,14 +37,17 @@ By default, the SimpleClient will try to establish a connection to any of these 
 
 ```
     {
+        'id': 'one',
         'receiverAddress': 'tcp://localhost:19790',
         'publisherAddress': 'tcp://localhost:19791'
     },
     {
+        'id': 'two',
         'receiverAddress': 'tcp://localhost:19890',
         'publisherAddress': 'tcp://localhost:19891'
     },
     {
+        'id': 'three',
         'receiverAddress': 'tcp://localhost:19990',
         'publisherAddress': 'tcp://localhost:19991'
     }
