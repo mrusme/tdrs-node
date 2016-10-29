@@ -295,7 +295,6 @@ export default class TDRS extends EventEmitter {
                 this._mapConfiguredLinksToConnections();
                 return this.emit('peer-entered', link);
             case 'EXIT':
-                // TODO: Remove peer from connections.
                 if(this._removeLinkFromConfigurationById(pm.id)) {
                     this._unmapNonexistentConfiguredLinksFromConnections(true);
                 }
@@ -600,9 +599,10 @@ export default class TDRS extends EventEmitter {
         let found: ?TdrsConnection = null;
 
         this._connections.forEach((connection: TdrsConnection) => {
-            if(connection.link.id === link.id
+            if((typeof link.id !== 'undefined'
+                && connection.link.id === link.id)
             || (connection.link.receiverAddress === link.receiverAddress
-            && connection.link.publisherAddress === link.publisherAddress)) {
+                && connection.link.publisherAddress === link.publisherAddress)) {
                 found = connection;
                 return false;
             }
@@ -630,7 +630,9 @@ export default class TDRS extends EventEmitter {
      */
     _mapConfiguredLinksToConnections() {
         this._configuration.links.forEach((link: TdrsLink) => {
+            this.log.debug('Checking whether link %j is already available in connections ...', link);
             if(!this._isConfiguredLinkInConnections(link)) {
+                this.log.debug('Nope, adding!');
                 const connection: TdrsConnection = {
                     'active': false,
                     'link': link,
@@ -664,7 +666,8 @@ export default class TDRS extends EventEmitter {
             let found: boolean = false;
 
             this._configuration.links.forEach((link: TdrsLink) => {
-                if(connection.link.id === link.id
+                if((typeof link.id !== 'undefined'
+                    && connection.link.id === link.id)
                 || (connection.link.receiverAddress === link.receiverAddress
                 && connection.link.publisherAddress === link.publisherAddress)) {
                     found = true;
@@ -721,7 +724,8 @@ export default class TDRS extends EventEmitter {
         for(counter = ZERO; counter < this._configuration.links.length; counter++) {
             const existingLink = this._configuration.links[counter];
 
-            if(existingLink.id === link.id
+            if((typeof link.id !== 'undefined'
+                && existingLink.id === link.id)
             || (existingLink.receiverAddress === link.receiverAddress
             && existingLink.publisherAddress === link.publisherAddress)) {
                 index = counter;
@@ -1014,9 +1018,16 @@ export default class TDRS extends EventEmitter {
             throw new Error('connect: No links specified.');
         }
 
+        this.log.debug('Number of configured links: %s', this._configuration.links.length);
+
         this._mapConfiguredLinksToConnections();
 
+        if(this._connections.length < one) {
+            throw new Error('connect: No connections available.');
+        }
+
         const connectionIndex: number = this._randomInteger(zero, (this._connections.length - one));
+        this.log.debug('Connecting to random (min 0, max %s) connection #%s ...', (this._connections.length - one), connectionIndex);
         let connection: TdrsConnection = this._connections[connectionIndex];
 
         this.log.debug('Connecting to %s ...', connection.link.publisherAddress);

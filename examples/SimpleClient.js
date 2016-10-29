@@ -8,14 +8,17 @@ const TDRS = require('../lib/index.js').TDRS;
 const tdrs = new TDRS({
     'links': [
         {
+            'id': 'one',
             'receiverAddress': 'tcp://localhost:19790',
             'publisherAddress': 'tcp://localhost:19791'
         },
         {
+            'id': 'two',
             'receiverAddress': 'tcp://localhost:19890',
             'publisherAddress': 'tcp://localhost:19891'
         },
         {
+            'id': 'three',
             'receiverAddress': 'tcp://localhost:19990',
             'publisherAddress': 'tcp://localhost:19991'
         }
