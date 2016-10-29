@@ -8,47 +8,13 @@ import Cache from 'node-cache';
 import crypto from 'crypto';
 import zlib from 'zlib';
 
-type TdrsLink = {
-    id: ?string,
-    publisherAddress: string,
-    receiverAddress: string
-};
-
-type TdrsConfiguration = {
-    links: Array<TdrsLink>,
-    connectRetryBeforeFailover: ?number,
-    compression: ?string,
-    encryption: ?string,
-    encryptionKey: ?string,
-    logger: ?Object
-};
-
-type TdrsConnection = {
-    active: boolean,
-    link: TdrsLink,
-    publisher: {
-        socket: ?Object,
-        connected: boolean,
-        retryCount: number
-    },
-    receiver: {
-        socket: ?Object,
-        connected: boolean,
-        retryCount: number
-    }
-};
-
-type TdrsPacket = {
-    data: any,
-    status: string
-};
-
-type TdrsPeerMessage = {
-    event: string,
-    id: string,
-    publisherAddress: string,
-    receiverAddress: string
-};
+import type {
+    TdrsLink,
+    TdrsConfiguration,
+    TdrsConnection,
+    TdrsPacket,
+    TdrsPeerMessage
+} from './TDRS.t';
 
 const ZERO = 0;
 
