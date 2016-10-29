@@ -55,6 +55,13 @@ By default, the SimpleClient will try to establish a connection to any of these 
 
 Feel free to modify [`examples/SimpleClient.js`](examples/SimpleClient.js) for testing purpose.
 
+##### [SimpleClient](examples/SimpleClient.js)
+
+```
+$ npm run DiscoveryClient
+```
+
+The DiscoveryClient will listen for discovery events and try to to establish a connection to each of the senders. When running in discovery mode, links must not be specified inside the configuration and `TDRS.connect()` must not be used. Instead, the TDRS implementation will automatically connect, as soon as TDRS links appear.
 
 
 [npm-image]: https://badge.fury.io/js/tdrs.svg
