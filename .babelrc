@@ -1,7 +1,6 @@
 {
     "presets": [
-        "latest-node5",
-        "latest-node6"
+        "latest"
     ],
     "plugins": [
         "transform-flow-strip-types"
