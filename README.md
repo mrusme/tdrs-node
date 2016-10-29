@@ -1,7 +1,7 @@
 # tdrs-node
 [![NPM version][npm-image]][npm-url] [![Build Status][travis-image]][travis-url] [![Dependency Status][daviddm-image]][daviddm-url]
 
-[TDRS](https://github.com/weltraumco/tdrs) client reference implementation as Node.js module.
+[TDRS](https://github.com/weltraumco/tdrs) Node.js client reference implementation.
 
 *Notice: This is __only__ a client implementation. You'll need to run a [TDRS](https://github.com/weltraumco/tdrs) link in order to test/use this Node package.*
 
