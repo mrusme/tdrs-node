@@ -1,6 +1,6 @@
 {
   "name": "tdrs",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "TDRS Node.js module",
   "main": "lib/index.js",
   "scripts": {
