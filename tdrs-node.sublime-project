@@ -4,8 +4,10 @@
         {
             "path": ".",
             "folder_exclude_patterns": [
-                "lib",
-                "docs"
+                "build",
+                "ext",
+                "docs",
+                "lib"
             ]
         }
     ]

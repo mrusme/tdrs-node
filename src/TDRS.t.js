@@ -41,3 +41,9 @@ export type TdrsPeerMessage = {
     publisherAddress: string,
     receiverAddress: string
 };
+
+export type TdrsZeroAddress = {
+    protocol: string,
+    address: string,
+    port: number
+}

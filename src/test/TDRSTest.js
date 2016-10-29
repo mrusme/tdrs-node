@@ -104,7 +104,7 @@ test('Initialization of TDRS is possible', t => {
 test('Retrieval of NULL logger is possible', t => {
     const tdrs = initializeDefaultTdrs();
 
-    if(typeof tdrs.log !== 'undefined' && typeof tdrs.log.debug !== 'undefined' && tdrs.log.debug()) {
+    if(typeof tdrs.log !== 'undefined' && typeof tdrs.log.debug !== 'undefined') {
         return t.pass();
     }
 

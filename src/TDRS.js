@@ -70,12 +70,13 @@ export default class TDRS extends EventEmitter {
             this._discoveryChild = cp.fork(__dirname + '/../lib/Discovery');
 
             this._discoveryChild.on('message', message => {
+                this.log.debug('Received discovery event: %j', message);
                 this._processPeerMessage(message);
 
                 try {
                     this.connect();
                 } catch(err) {
-                    this.log.debug(err);
+                    // That's okay.
                 }
 
                 return true;
@@ -95,12 +96,12 @@ export default class TDRS extends EventEmitter {
         }
 
         return {
-            'fatal': () => true,
-            'error': () => true,
-            'warn': () => true,
-            'info': () => true,
-            'debug': () => true,
-            'trace': () => true
+            'fatal': () => console.log.apply(console, arguments),
+            'error': () => console.log.apply(console, arguments),
+            'warn': ()  => console.log.apply(console, arguments),
+            'info': ()  => console.log.apply(console, arguments),
+            'debug': () => console.log.apply(console, arguments),
+            'trace': () => console.log.apply(console, arguments)
         };
     }
 
@@ -309,7 +310,7 @@ export default class TDRS extends EventEmitter {
             try {
                 this.connect();
             } catch(err) {
-                this.log.debug(err);
+                // That's okay.
             }
 
             return true;
