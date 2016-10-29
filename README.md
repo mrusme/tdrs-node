@@ -3,7 +3,7 @@
 
 [TDRS](https://github.com/weltraumco/tdrs) client reference implementation as Node.js module.
 
-*Notice: This is **only** a client implementation. You'll need to run a [TDRS](https://github.com/weltraumco/tdrs) link in order to test/use this Node package.*
+*Notice: This is __only__ a client implementation. You'll need to run a [TDRS](https://github.com/weltraumco/tdrs) link in order to test/use this Node package.*
 
 ## Usage
 
