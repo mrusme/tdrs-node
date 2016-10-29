@@ -10,3 +10,10 @@
 ```
 $ npm run SimpleClient
 ```
+
+[npm-image]: https://badge.fury.io/js/tdrs.svg
+[npm-url]: https://npmjs.org/package/tdrs
+[travis-image]: https://travis-ci.org/weltraumco/tdrs-node.svg?branch=develop
+[travis-url]: https://travis-ci.org/weltraumco/tdrs-node
+[daviddm-image]: https://david-dm.org/weltraumco/tdrs-node.svg?theme=shields.io
+[daviddm-url]: https://david-dm.org/weltraumco/tdrs-node
