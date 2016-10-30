@@ -1,8 +1,8 @@
-const bunyan = require('/usr/local/lib/node_modules/bunyan');
-const logger = bunyan.createLogger({
-    'name': 'DiscoveryClient',
-    'level': 10,
-});
+// const bunyan = require('bunyan');
+// const logger = bunyan.createLogger({
+//     'name': 'DiscoveryClient',
+//     'level': 10,
+// });
 
 const TDRS = require('../lib/index.js').TDRS;
 const tdrs = new TDRS({
@@ -10,8 +10,8 @@ const tdrs = new TDRS({
     'connectRetryBeforeFailover': 1,
     'compression': 'gzip',
     'encryption': 'aes-256-ctr',
-    'encryptionKey': 'LaLaLaLaLaLaLaLaLa',
-    'logger': logger
+    'encryptionKey': 'LaLaLaLaLaLaLaLaLa'
+    // 'logger': logger
 });
 
 tdrs.on('message', message => {

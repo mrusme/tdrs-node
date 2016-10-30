@@ -1,0 +1,13 @@
+build
+ext/libzmq
+ext/czmq
+lib/test
+docs
+node_modules
+.gitignore
+.jsdoc.json
+.travis.yml
+*.log
+*.sublime-project
+*.sublime-workspace
+.DS_Store
