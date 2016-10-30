@@ -15,5 +15,3 @@ addons:
 notifications:
   email: false
   slack: twostairs:jXnTx42wIQlWkWmVT5R0iNI4
-    on_success: always
-    on_failure: always
