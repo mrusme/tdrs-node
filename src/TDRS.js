@@ -66,8 +66,16 @@ export default class TDRS extends EventEmitter {
                 this._configuration.links = [];
             }
 
+            const forkArgs = [
+                (this._configuration.discovery.interface || ''),
+                (this._configuration.discovery.port || ''),
+                (this._configuration.discovery.interval || ''),
+                (this._configuration.discovery.group || ''),
+                (this._configuration.discovery.key || '')
+            ];
+
             // @flowIgnore child_process
-            this._discoveryChild = cp.fork(__dirname + '/../lib/Discovery');
+            this._discoveryChild = cp.fork(__dirname + '/../lib/Discovery', forkArgs);
 
             this._discoveryChild.on('message', message => {
                 this.log.debug('Received discovery event: %j', message);
@@ -1119,12 +1127,12 @@ export default class TDRS extends EventEmitter {
             throw new Error('connect: Active connections already available. Please disconnect first.');
         }
 
-        if(this._configuration.discovery !== true
+        if(typeof this._configuration.discovery !== 'object'
         && this._configuration.links.length < one) {
             throw new Error('connect: No links specified.');
         }
 
-        if(this._configuration.discovery === true
+        if(typeof this._configuration.discovery === 'object'
         && this._configuration.links.length < one) {
             return false;
         }

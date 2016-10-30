@@ -6,7 +6,7 @@ const logger = bunyan.createLogger({
 
 const TDRS = require('../lib/index.js').TDRS;
 const tdrs = new TDRS({
-    'discovery': true,
+    'discovery': {},
     'connectRetryBeforeFailover': 1,
     'compression': 'gzip',
     'encryption': 'aes-256-ctr',

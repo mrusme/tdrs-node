@@ -3,6 +3,7 @@
 import Promise from 'bluebird';
 
 import type {
+    TdrsDiscoveryConfiguration,
     TdrsZeroAddress
 } from './TDRS.t';
 
@@ -10,13 +11,18 @@ import type {
  * Discovery Class
  */
 class Discovery {
+    _configuration:         TdrsDiscoveryConfiguration
     _zyreBinding:           Function
     _zyre:                  Function
 
     /**
      * Constructs the class.
+     *
+     * @param      {Object}   configuration       The TDRS discovery config
      */
-    constructor() {
+    constructor(configuration: TdrsDiscoveryConfiguration) {
+        this._configuration = configuration;
+
         try {
             this._zyreBinding = require('bindings')('zyre');
             this._zyre = new this._zyreBinding.Zyre();
@@ -103,8 +109,16 @@ class Discovery {
      * @return     {boolean}  True.
      */
     run() {
+        this._zyre.setPort(this._configuration.port);
+        this._zyre.setInterval(this._configuration.interval);
+
+        if(typeof this._configuration.inteface !== 'undefined'
+        && this._configuration.inteface !== null) {
+            this._zyre.setInterface(this._configuration.interface);
+        }
+
         this._zyre.start();
-        this._zyre.join('TDRS');
+        this._zyre.join(this._configuration.group);
 
         while(true) {
             const event = new this._zyreBinding.ZyreEvent(this._zyre);
@@ -136,5 +150,34 @@ class Discovery {
     }
 }
 
-const discovery = new Discovery();
+
+const CFG_INTERFACE_INDEX = 2;
+const CFG_PORT_INDEX = 3;
+const CFG_INTERVAL_INDEX = 4;
+const CFG_GROUP_INDEX = 5;
+const CFG_KEY_INDEX = 6;
+
+const DEFAULT_DISCOVERY_PORT = 5670;
+const DEFAULT_DISCOVERY_INTERVAL = 1000;
+
+
+const config: TdrsDiscoveryConfiguration = {
+    'interface': (process.argv[CFG_INTERFACE_INDEX] !== ''
+        ? process.argv[CFG_INTERFACE_INDEX]
+        : null),
+    'port': (process.argv[CFG_PORT_INDEX]      !== ''
+        ? parseInt(process.argv[CFG_PORT_INDEX], 10)
+        : DEFAULT_DISCOVERY_PORT),
+    'interval': (process.argv[CFG_INTERVAL_INDEX]  !== ''
+        ? parseInt(process.argv[CFG_INTERVAL_INDEX], 10)
+        : DEFAULT_DISCOVERY_INTERVAL),
+    'group': (process.argv[CFG_GROUP_INDEX]     !== ''
+        ? process.argv[CFG_GROUP_INDEX]
+        : 'TDRS'),
+    'key': (process.argv[CFG_KEY_INDEX]       !== ''
+        ? process.argv[CFG_KEY_INDEX]
+        : 'TDRS')
+};
+
+const discovery = new Discovery(config);
 discovery.run();

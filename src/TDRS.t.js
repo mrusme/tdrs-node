@@ -4,9 +4,17 @@ export type TdrsLink = {
     receiverAddress: string
 };
 
+export type TdrsDiscoveryConfiguration = {
+    interface: ?string,
+    port: ?number,
+    interval: ?number,
+    group: ?string,
+    key: ?string
+};
+
 export type TdrsConfiguration = {
     links: ?Array<TdrsLink>,
-    discovery: ?boolean,
+    discovery: ?TdrsDiscoveryConfiguration,
     connectRetryBeforeFailover: ?number,
     sendTimeout: ?number,
     compression: ?string,
