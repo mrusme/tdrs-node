@@ -6,7 +6,7 @@
   "scripts": {
     "postinstall": "cd ext/zyre/bindings/nodejs && npm install node-ninja bindings nan prebuild && PATH=./node_modules/.bin/:$PATH ./build.sh && cd ../../../../ && mkdir -p ./build && mv ./ext/zyre/bindings/nodejs/build/Release/zyre.node ./build/zyre.node && rm -rf ./ext/libzmq ./ext/czmq ./ext/zyre/bindings/nodejs/gyp-*",
     "flow": "flow",
-    "compile": "gulp",
+    "compile": "gulp build",
     "prepublish": "npm run compile",
     "test": "npm run compile && ava -v",
     "SimpleClient": "node ./examples/SimpleClient.js",
