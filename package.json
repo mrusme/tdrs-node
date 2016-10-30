@@ -4,7 +4,7 @@
   "description": "TDRS Node.js module",
   "main": "lib/index.js",
   "scripts": {
-    "start": "echo \"Nothing to start. Performing 'npm run compile' ...\" && npm run compile",
+    "start": "gulp",
     "flow": "flow",
     "compile": "gulp build",
     "prepublish": "npm run compile",
