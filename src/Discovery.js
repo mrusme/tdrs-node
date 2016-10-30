@@ -1,6 +1,6 @@
 //@flow
 'use strict';
-import Promise from 'bluebird';
+import crypto from 'crypto';
 
 import type {
     TdrsDiscoveryConfiguration,
@@ -104,6 +104,16 @@ class Discovery {
     }
 
     /**
+     * Hashes data using SHA1.
+     *
+     * @param      {*}        data                The data
+     * @return     {String}   The SHA1 hex string.
+     */
+    _hash(data: any) {
+        return crypto.createHash('sha1').update(data).digest('hex').toUpperCase();
+    }
+
+    /**
      * Runs the discovery listener.
      *
      * @return     {boolean}  True.
@@ -131,7 +141,11 @@ class Discovery {
 
             if(eventType === 'ENTER' || eventType === 'EXIT') {
                 if(eventType === 'ENTER') {
-                    // TODO: Verify X-KEY
+                    const eventKey = event.header('X-KEY');
+
+                    if(this._hash(this._configuration.key) !== eventKey) {
+                        continue;
+                    }
                 }
 
                 const peerMessage = this._buildPeerMessage(event);
